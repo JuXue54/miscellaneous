@@ -1,8 +1,5 @@
 import base64
-import binascii
-from inspect import signature
 
-from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Util.asn1 import DerSequence
 from cryptography import x509
@@ -29,7 +26,7 @@ def calculate_der_hash(pem_cert):
 
 def calculate_tbs_hash(pem_cert):
     """
-    提取证书中的正文和签名
+    提取证书中的正文和签名，会打印内容
     """
     # 提取 PEM 中的 Base64 部分
     pem_lines = pem_cert.strip().splitlines()
@@ -39,13 +36,31 @@ def calculate_tbs_hash(pem_cert):
     # 解析证书并提取 TBSCertificate（ASN.1 结构）
     cert = x509.load_der_x509_certificate(der_data)
     tbs_data = cert.tbs_certificate_bytes  # 直接获取 TBSCertificate 的 DER 编码
-
+    print_cert(cert)
     # 计算哈希（示例用 SHA-256）
     return tbs_data, cert.signature
 
+
+def print_cert(cert):
+    extensions = []
+    for extension in cert.extensions:
+        extensions.append(f'{extension.oid._name}: {extension.value}')
+    exts = '\n'.join(extensions)
+
+    print(f"""
+        Subject: {cert.subject}
+        Issuer: {cert.issuer}
+        not valid before: {cert.not_valid_before_utc}
+        not valid after: {cert.not_valid_after_utc}
+        crypto algorithm:{cert.signature_algorithm_oid._name}
+        hash algorithm: {cert.signature_hash_algorithm.name}
+        {exts}
+        """)
+
+
 def extract_tbs_and_signature(pem_cert: str) -> tuple:
     """
-    提取证书中的正文和签名
+    提取证书中的正文和签名，不会打印内容
     @see calculate_tbs_hash
     """
     """从PEM证书中提取TBSCertificate和签名"""
@@ -56,7 +71,6 @@ def extract_tbs_and_signature(pem_cert: str) -> tuple:
     # 解析DER格式的证书（ASN.1序列）
     cert_asn1 = DerSequence()
     cert_asn1.decode(der_data)
-
     # TBSCertificate是证书的第一个元素
     tbs_certificate = cert_asn1[0]
 
@@ -76,8 +90,8 @@ def verify_all(*ca):
             pem_certs.append(f.read())
 
     for i in range(1, len(pem_certs)):
-        pub_key = calculate_der_hash(pem_certs[i-1])
-        message, signature = extract_tbs_and_signature(pem_certs[i])
+        pub_key = calculate_der_hash(pem_certs[i - 1])
+        message, signature = calculate_tbs_hash(pem_certs[i])
         rsa_util = RSAUtil()
         rsa_util.load_public_key(pub_key)
 
@@ -85,6 +99,7 @@ def verify_all(*ca):
         if not res:
             return False
     return True
+
 
 def test():
     # ca的公钥
@@ -105,17 +120,17 @@ def test():
     ED 47 AC 0C BF F1 80 B2 BA FF 47 7B E9 39 C4 54
     C4 94 54 99 19 F1 57 99 AF E2 14 22 5B E8 2E BB
     63 2D BA AE 81 BD 13 DC E6 17 5B E0 90 53 49 01
-    """.replace('\n','').replace('\t', '').replace(' ','')
+    """.replace('\n', '').replace('\t', '').replace(' ', '')
     n = int(model, 16)
-    e = int("010001",16)
-    pub_key = RSA.construct((n,e))
+    e = int("010001", 16)
+    pub_key = RSA.construct((n, e))
     rsa_util = RSAUtil()
     rsa_util.load_public_key(pub_key)
 
     # 获取deepseek的证书和签名
     with open('_.deepseek.com', 'r') as file:
         content = file.read()
-    message, signature = calculate_tbs_hash(content)
+    message, signature = extract_tbs_and_signature(content)
 
     success = rsa_util.verify_sign(message, base64.b64encode(signature))
     if success:
@@ -124,16 +139,12 @@ def test():
         print('Certificate verification failed')
 
 
-
-
-
 def main():
-    success = verify_all('DigiCert Global Root G2.crt','GeoTrust TLS RSA CA G1.crt', '_.deepseek.com')
+    success = verify_all('DigiCert Global Root G2.crt', 'GeoTrust TLS RSA CA G1.crt', '_.deepseek.com')
     if success:
         print('Certificate verified successfully')
     else:
         print('Certificate verification failed')
-
 
 
 if __name__ == '__main__':
