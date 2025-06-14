@@ -59,7 +59,7 @@ class RSAUtil:
                 message = message.encode()
             hash_obj = SHA256.new(message)
         try:
-            pkcs1_15.new(self.public_key).verify(hash_obj, signature)
+            pkcs1_15.new(self.public_key).verify(hash_obj, base64.b64decode(signature))
             return True
         except (ValueError, TypeError) as e:
             print(e)
