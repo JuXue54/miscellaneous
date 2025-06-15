@@ -1,5 +1,7 @@
 import numpy as np
 
+from crypto.crypto_util import RSAUtil
+
 
 def extend_euclid(a, b):
     if b == 0:
@@ -113,19 +115,20 @@ def check_prime(n=1000):
     print("Miller Rabin pseudo prime number list: %s"% r2)
 
 class RSA:
-    def __init__(self, p, q):
+    def __init__(self, p, q, e):
         self.__p = p
         self.__q = q
         self.__n = p * q
         self.__theta = (p - 1) * (q - 1)
-        i = 1
-        while True:
-            e = i * 2 + 1
-            gcd, _, _ = extend_euclid(self.__theta, e)
-            if gcd == 1:
-                break
-            else:
-                i += 1
+        if e is None:
+            i = 1
+            while True:
+                e = i * 2 + 1
+                gcd, _, _ = extend_euclid(self.__theta, e)
+                if gcd == 1:
+                    break
+                else:
+                    i += 1
         self.__e = e
         self.__d = modular_linear_equation_solver(e, 1, self.__theta)[0]
 
@@ -137,8 +140,18 @@ class RSA:
 
 
 if __name__ == '__main__':
-    rsa = RSA(11, 29)
-    encrypto = rsa.encrypt(100)
+    rsa_util = RSAUtil()
+    rsa_util.generate_keys()
+    public_key = rsa_util.public_key
+    private_key = rsa_util.private_key
+    print(f"""
+    p: {private_key.p}
+    q: {private_key.q}
+    e: {private_key.e}
+    """)
+
+    rsa = RSA(private_key.p, private_key.q, private_key.e)
+    encrypto = rsa.encrypt(12345)
     print(encrypto)
     original = rsa.decrypt(encrypto)
     print(original)
