@@ -6,6 +6,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import animation
 
 
 def rand_one(matrix, num):
@@ -19,59 +20,77 @@ def neighbors(board, i, j):
     m, n = len(board), len(board[0])
     count = 0
     if i > 0:
-        count += (board[i - 1][j] & 1)
+        count += board[i - 1][j]
         if j > 0:
-            count += (board[i - 1][j - 1] & 1)
+            count += board[i - 1][j - 1]
         if j < n - 1:
-            count += (board[i - 1][j + 1] & 1)
+            count += board[i - 1][j + 1]
     if i < m - 1:
-        count += (board[i + 1][j] & 1)
+        count += board[i + 1][j]
         if j > 0:
-            count += (board[i + 1][j - 1] & 1)
+            count += board[i + 1][j - 1]
         if j < n - 1:
-            count += (board[i + 1][j + 1] & 1)
+            count += board[i + 1][j + 1]
     if j > 0:
-        count += (board[i][j - 1] & 1)
+        count += board[i][j - 1]
     if j < n - 1:
-        count += (board[i][j + 1] & 1)
+        count += board[i][j + 1]
     if board[i][j] == 1:
         if count < 2 or count > 3:
-            return 3
+            return 0
         else:
             return 1
     else:
         if count != 3:
             return 0
         else:
-            return 2
+            return 1
 
 
-def life(board):
+def life(board, copy):
     m, n = len(board), len(board[0])
     for i in range(m):
         for j in range(n):
-            board[i][j] = neighbors(board, i, j)
-    for i in range(m):
-        for j in range(n):
-            if board[i][j] > 1:
-                board[i][j] ^= 3
+            copy[i][j] = neighbors(board, i, j)
+
+class LifeBox:
+
+    def __init__(self, width, height):
+        self.matrix = np.zeros([height, width], dtype='int')
+        self.copy = np.zeros([height, width], dtype='int')
+        rand_one(self.matrix, 7000)
+
+    def step(self):
+        life(self.matrix, self.copy)
+        self.matrix, self.copy = self.copy, self.matrix
+        return self.matrix
+
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    width = 200
-    height = 200
-    matrix = np.zeros([height, width], dtype='int')
-    rand_one(matrix, 7000)
+    width = 300
+    height = 300
+    box = LifeBox(width, height)
 
     fig = plt.figure()
-    img = plt.imshow(matrix)
+    img = plt.imshow(box.matrix, animated=True, cmap=plt.get_cmap("viridis"), aspect="equal")
 
-    while True:
-        life(matrix)
-        img.set_data(matrix)
-        fig.canvas.draw()
-        plt.pause(0.01)
+
+    def animate(*args):
+        img.set_array(box.step())
+        return (img,)
+
+    ani = animation.FuncAnimation(fig, animate, interval=60, blit=True,cache_frame_data=False)
+    plt.show()
+
+    # while True:
+    #     life(matrix, matrix_1)
+    #     matrix, matrix_1 = matrix_1, matrix
+    #     img.set_data(matrix)
+    #     fig.canvas.draw()
+    #     plt.pause(0.01)
+
 
 # plt.show()
 
