@@ -3,6 +3,11 @@ from matplotlib import pyplot as plt
 
 
 def gamma(z):
+    """
+    f(z) = ∫₀∞ t^(z-1)e^(-t) dt
+    :param z:
+    :return:
+    """
     n = 5000
     m = 500
     t = np.logspace(0, 10, num=n, base=10)
